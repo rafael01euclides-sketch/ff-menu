@@ -1,12 +1,16 @@
 name: Build Rio APK
+
 on:
   push:
   workflow_dispatch:
+
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
       - uses: actions/checkout@v4
+
       - name: Criar arquivos do app
         run: |
           cat > settings.gradle <<'EOF_FILE'
@@ -17,6 +21,7 @@ jobs:
                   gradlePluginPortal()
               }
           }
+
           dependencyResolutionManagement {
               repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
               repositories {
@@ -24,20 +29,27 @@ jobs:
                   mavenCentral()
               }
           }
+
           rootProject.name = "RioRiseMenu"
           include ':app'
           EOF_FILE
+
           cat > build.gradle <<'EOF_FILE'
           plugins {
               id 'com.android.application' version '8.5.2' apply false
               id 'org.jetbrains.kotlin.android' version '1.9.24' apply false
           }
           EOF_FILE
+
           cat > gradle.properties <<'EOF_FILE'
           org.gradle.jvmargs=-Xmx2g -Dfile.encoding=UTF-8
           android.nonTransitiveRClass=true
           EOF_FILE
-          mkdir -p app
+
+          mkdir -p app/src/main/res/values
+          mkdir -p app/src/main/res/drawable
+          mkdir -p app/src/main/java/com/meuapp/riomenu
+
           cat > app/build.gradle <<'EOF_FILE'
           plugins {
               id 'com.android.application'
@@ -52,32 +64,48 @@ jobs:
                   applicationId 'com.meuapp.riomenu'
                   minSdk 26
                   targetSdk 34
-                  versionCode 1
-                  versionName '1.0'
+                  versionCode 2
+                  versionName '2.0'
               }
 
               compileOptions {
                   sourceCompatibility JavaVersion.VERSION_17
                   targetCompatibility JavaVersion.VERSION_17
               }
+
               kotlinOptions {
                   jvmTarget = '17'
               }
           }
           EOF_FILE
-          mkdir -p app/src/main
+
+          cat > app/src/main/res/values/strings.xml <<'EOF_FILE'
+          <resources>
+              <string name="app_name">Rio Rise</string>
+          </resources>
+          EOF_FILE
+
+          cat > app/src/main/res/drawable/ic_launcher.xml <<'EOF_FILE'
+          <vector xmlns:android="http://schemas.android.com/apk/res/android"
+              android:width="108dp"
+              android:height="108dp"
+              android:viewportWidth="108"
+              android:viewportHeight="108">
+
+              <path
+                  android:fillColor="#E50914"
+                  android:pathData="M54,54m-50,0a50,50 0,1 1,100 0a50,50 0,1 1,-100 0" />
+
+              <path
+                  android:fillColor="#FFFFFF"
+                  android:pathData="M44,34L78,54L44,74Z" />
+          </vector>
+          EOF_FILE
+
           cat > app/src/main/AndroidManifest.xml <<'EOF_FILE'
           <?xml version="1.0" encoding="utf-8"?>
+
           <manifest xmlns:android="http://schemas.android.com/apk/res/android">
-
-              <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
-              <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
-              <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
-              <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
-
-              <queries>
-                  <package android:name="com.roleplay.riorise" />
-              </queries>
 
               <application
                   android:icon="@drawable/ic_launcher"
@@ -87,61 +115,37 @@ jobs:
                   <activity
                       android:name=".MainActivity"
                       android:exported="true">
+
                       <intent-filter>
                           <action android:name="android.intent.action.MAIN" />
                           <category android:name="android.intent.category.LAUNCHER" />
                       </intent-filter>
+
                   </activity>
 
-                  <service
-                      android:name=".FloatingService"
-                      android:exported="false"
-                      android:foregroundServiceType="specialUse">
-                      <property
-                          android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
-                          android:value="floating_shortcut" />
-                  </service>
               </application>
+
           </manifest>
           EOF_FILE
-          mkdir -p app/src/main/res/values
-          cat > app/src/main/res/values/strings.xml <<'EOF_FILE'
-          <resources>
-              <string name="app_name">Rio Rise Menu</string>
-          </resources>
-          EOF_FILE
-          mkdir -p app/src/main/res/drawable
-          cat > app/src/main/res/drawable/ic_launcher.xml <<'EOF_FILE'
-          <vector xmlns:android="http://schemas.android.com/apk/res/android"
-              android:width="108dp"
-              android:height="108dp"
-              android:viewportWidth="108"
-              android:viewportHeight="108">
-              <path
-                  android:fillColor="#E50914"
-                  android:pathData="M54,54m-50,0a50,50 0,1 1,100 0a50,50 0,1 1,-100 0" />
-              <path
-                  android:fillColor="#FFFFFF"
-                  android:pathData="M44,34L78,54L44,74Z" />
-          </vector>
-          EOF_FILE
-          mkdir -p app/src/main/java/com/meuapp/riomenu
+
           cat > app/src/main/java/com/meuapp/riomenu/MainActivity.kt <<'EOF_FILE'
           package com.meuapp.riomenu
 
-          import android.Manifest
           import android.app.Activity
           import android.content.ActivityNotFoundException
           import android.content.Intent
           import android.graphics.Color
+          import android.graphics.Typeface
           import android.graphics.drawable.GradientDrawable
           import android.net.Uri
-          import android.os.Build
           import android.os.Bundle
-          import android.provider.Settings
           import android.view.Gravity
+          import android.view.View
           import android.widget.Button
+          import android.widget.CheckBox
+          import android.widget.EditText
           import android.widget.LinearLayout
+          import android.widget.ScrollView
           import android.widget.TextView
           import android.widget.Toast
 
@@ -149,413 +153,53 @@ jobs:
 
               companion object {
                   const val GAME = "com.roleplay.riorise"
+                  const val KEY_CORRETA = "SHADOW-ZTL8-GPJR-A8MQ-ZQ7X"
               }
 
-              private lateinit var status: TextView
+              private val bg = Color.parseColor("#121212")
+              private val card = Color.parseColor("#292929")
+              private val red = Color.parseColor("#EF3030")
+              private val white = Color.WHITE
+              private val gray = Color.parseColor("#A8A8A8")
 
-              private fun dp(v: Int) = (v * resources.displayMetrics.density).toInt()
+              private fun dp(v: Int): Int {
+                  return (v * resources.displayMetrics.density).toInt()
+              }
 
-              override fun onCreate(savedInstanceState: Bundle?) {
-                  super.onCreate(savedInstanceState)
+              private fun rounded(
+                  color: Int,
+                  strokeColor: Int? = null,
+                  radius: Int = 12
+              ): GradientDrawable {
+                  return GradientDrawable().apply {
+                      setColor(color)
+                      cornerRadius = dp(radius).toFloat()
 
-                  val root = LinearLayout(this).apply {
-                      orientation = LinearLayout.VERTICAL
+                      if (strokeColor != null) {
+                          setStroke(dp(1), strokeColor)
+                      }
+                  }
+              }
+
+              private fun makeText(
+                  value: String,
+                  size: Float,
+                  color: Int = white,
+                  bold: Boolean = false
+              ): TextView {
+                  return TextView(this).apply {
+                      text = value
+                      textSize = size
+                      setTextColor(color)
                       gravity = Gravity.CENTER
-                      setBackgroundColor(Color.parseColor("#0D0D0D"))
-                      setPadding(dp(32), dp(32), dp(32), dp(32))
-                  }
 
-                  val title = TextView(this).apply {
-                      text = "RIO RISE"
-                      setTextColor(Color.WHITE)
-                      textSize = 28f
-                      gravity = Gravity.CENTER
-                      setPadding(0, 0, 0, dp(8))
-                  }
-                  val sub = TextView(this).apply {
-                      text = "Toque para abrir o jogo com o menu flutuante"
-                      setTextColor(Color.parseColor("#AAAAAA"))
-                      textSize = 14f
-                      gravity = Gravity.CENTER
-                      setPadding(0, 0, 0, dp(32))
-                  }
-                  status = TextView(this).apply {
-                      setTextColor(Color.parseColor("#AAAAAA"))
-                      textSize = 12f
-                      gravity = Gravity.CENTER
-                      setPadding(0, dp(24), 0, 0)
-                  }
-
-                  val play = Button(this).apply {
-                      text = "JOGAR"
-                      setTextColor(Color.WHITE)
-                      textSize = 16f
-                      background = GradientDrawable().apply {
-                          setColor(Color.parseColor("#E50914"))
-                          cornerRadius = dp(12).toFloat()
+                      if (bold) {
+                          typeface = Typeface.DEFAULT_BOLD
                       }
-                      layoutParams = LinearLayout.LayoutParams(
-                          LinearLayout.LayoutParams.MATCH_PARENT, dp(56)
-                      ).apply { bottomMargin = dp(16) }
-                      setOnClickListener { launchGame() }
-                  }
-
-                  root.addView(title)
-                  root.addView(sub)
-                  root.addView(play)
-                  root.addView(status)
-                  setContentView(root)
-
-                  if (Build.VERSION.SDK_INT >= 33) {
-                      requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 1)
                   }
               }
 
-              override fun onResume() {
-                  super.onResume()
-                  status.text = if (Settings.canDrawOverlays(this))
-                      "Permissão do menu flutuante: ativa ✔"
-                  else
-                      "Permissão do menu flutuante: falta ativar"
-              }
-
-              private fun launchGame() {
-                  if (!Settings.canDrawOverlays(this)) {
-                      Toast.makeText(
-                          this,
-                          "Ative \"Sobrepor a outros apps\" para este app e volte",
-                          Toast.LENGTH_LONG
-                      ).show()
-                      startActivity(
-                          Intent(
-                              Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-                              Uri.parse("package:$packageName")
-                          )
-                      )
-                      return
-                  }
-
-                  val gameIntent = packageManager.getLaunchIntentForPackage(GAME)
-                  if (gameIntent == null) {
-                      Toast.makeText(this, "Jogo não instalado. Abrindo a Play Store...", Toast.LENGTH_LONG).show()
-                      try {
-                          startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("market://details?id=$GAME")))
-                      } catch (e: ActivityNotFoundException) {
-                          startActivity(
-                              Intent(Intent.ACTION_VIEW, Uri.parse("https://play.google.com/store/apps/details?id=$GAME"))
-                          )
-                      }
-                      return
-                  }
-
-                  startForegroundService(Intent(this, FloatingService::class.java))
-                  startActivity(gameIntent)
-              }
-          }
-          EOF_FILE
-          mkdir -p app/src/main/java/com/meuapp/riomenu
-          cat > app/src/main/java/com/meuapp/riomenu/FloatingService.kt <<'EOF_FILE'
-          package com.meuapp.riomenu
-
-          import android.app.Notification
-          import android.app.NotificationChannel
-          import android.app.NotificationManager
-          import android.app.Service
-          import android.content.Intent
-          import android.content.res.ColorStateList
-          import android.graphics.Color
-          import android.graphics.PixelFormat
-          import android.graphics.Typeface
-          import android.graphics.drawable.GradientDrawable
-          import android.os.IBinder
-          import android.view.Gravity
-          import android.view.MotionEvent
-          import android.view.View
-          import android.view.WindowManager
-          import android.widget.LinearLayout
-          import android.widget.ScrollView
-          import android.widget.Switch
-          import android.widget.TextView
-          import kotlin.math.abs
-
-          class FloatingService : Service() {
-
-              private var wm: WindowManager? = null
-              private var root: LinearLayout? = null
-              private var bubble: TextView? = null
-              private var panel: LinearLayout? = null
-              private var content: LinearLayout? = null
-              private var params: WindowManager.LayoutParams? = null
-              private val tabViews = mutableListOf<TextView>()
-
-              private val red = Color.parseColor("#E50914")
-
-              private fun dp(v: Int) = (v * resources.displayMetrics.density).toInt()
-
-              override fun onBind(intent: Intent?): IBinder? = null
-
-              override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-                  startForeground(1, buildNotification())
-                  if (root == null) showOverlay()
-                  return START_NOT_STICKY
-              }
-
-              private fun buildNotification(): Notification {
-                  val nm = getSystemService(NotificationManager::class.java)
-                  nm.createNotificationChannel(
-                      NotificationChannel("rr_float", "Menu flutuante", NotificationManager.IMPORTANCE_LOW)
-                  )
-                  return Notification.Builder(this, "rr_float")
-                      .setContentTitle("Menu flutuante ativo")
-                      .setContentText("Toque no ícone sobre o jogo para abrir o menu")
-                      .setSmallIcon(R.drawable.ic_launcher)
-                      .build()
-              }
-
-              private fun showOverlay() {
-                  val windowManager = getSystemService(WINDOW_SERVICE) as WindowManager
-                  wm = windowManager
-
-                  // Bolinha
-                  val b = TextView(this).apply {
-                      text = "RR"
-                      setTextColor(Color.WHITE)
-                      textSize = 16f
-                      typeface = Typeface.DEFAULT_BOLD
-                      gravity = Gravity.CENTER
-                      background = GradientDrawable().apply {
-                          shape = GradientDrawable.OVAL
-                          setColor(red)
-                          setStroke(dp(2), Color.WHITE)
-                      }
-                      layoutParams = LinearLayout.LayoutParams(dp(56), dp(56))
-                  }
-                  bubble = b
-
-                  // Painel
-                  val p = LinearLayout(this).apply {
-                      orientation = LinearLayout.HORIZONTAL
-                      visibility = View.GONE
-                      background = GradientDrawable().apply {
-                          setColor(Color.parseColor("#F2121212"))
-                          cornerRadius = dp(10).toFloat()
-                          setStroke(dp(1), Color.parseColor("#55E50914"))
-                      }
-                      layoutParams = LinearLayout.LayoutParams(dp(330), dp(240))
-                  }
-                  panel = p
-
-                  // Barra lateral
-                  val sidebar = LinearLayout(this).apply {
+              private fun baseLayout(): LinearLayout {
+                  return LinearLayout(this).apply {
                       orientation = LinearLayout.VERTICAL
-                      setPadding(dp(6), dp(8), dp(6), dp(8))
-                      setBackgroundColor(Color.parseColor("#0D0D0D"))
-                      layoutParams = LinearLayout.LayoutParams(dp(90), LinearLayout.LayoutParams.MATCH_PARENT)
-                  }
-                  sidebar.addView(TextView(this).apply {
-                      text = "MENU"
-                      setTextColor(red)
-                      textSize = 15f
-                      typeface = Typeface.DEFAULT_BOLD
-                      setPadding(dp(6), 0, 0, dp(8))
-                  })
-                  for (i in 0 until 6) {
-                      val t = TextView(this).apply {
-                          text = "00"
-                          textSize = 13f
-                          setPadding(dp(10), dp(7), dp(10), dp(7))
-                          setOnClickListener { selectTab(i) }
-                      }
-                      tabViews.add(t)
-                      sidebar.addView(t)
-                  }
-                  sidebar.addView(View(this), LinearLayout.LayoutParams(1, 0, 1f))
-                  sidebar.addView(TextView(this).apply {
-                      text = "Sair"
-                      setTextColor(Color.parseColor("#AAAAAA"))
-                      textSize = 13f
-                      setPadding(dp(10), dp(7), dp(10), dp(7))
-                      setOnClickListener { stopSelf() }
-                  })
-
-                  // Lado direito
-                  val right = LinearLayout(this).apply {
-                      orientation = LinearLayout.VERTICAL
-                      layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 1f)
-                  }
-
-                  val headerRow = LinearLayout(this).apply {
-                      orientation = LinearLayout.HORIZONTAL
-                      gravity = Gravity.CENTER_VERTICAL
-                      setBackgroundColor(Color.parseColor("#1A1A1A"))
-                  }
-                  val dragHandle = TextView(this).apply {
-                      text = "≡  Arraste aqui"
-                      setTextColor(Color.parseColor("#AAAAAA"))
-                      textSize = 12f
-                      setPadding(dp(12), dp(10), dp(12), dp(10))
-                      layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
-                  }
-                  val closeBtn = TextView(this).apply {
-                      text = "✕"
-                      setTextColor(Color.WHITE)
-                      textSize = 15f
-                      setPadding(dp(14), dp(8), dp(14), dp(8))
-                      setOnClickListener { showPanel(false) }
-                  }
-                  headerRow.addView(dragHandle)
-                  headerRow.addView(closeBtn)
-
-                  val scroll = ScrollView(this).apply {
-                      layoutParams = LinearLayout.LayoutParams(
-                          LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f
-                      )
-                  }
-                  val c = LinearLayout(this).apply {
-                      orientation = LinearLayout.VERTICAL
-                      setPadding(dp(10), dp(6), dp(10), dp(6))
-                  }
-                  content = c
-                  scroll.addView(c)
-
-                  right.addView(headerRow)
-                  right.addView(scroll)
-
-                  p.addView(sidebar)
-                  p.addView(right)
-
-                  val r = LinearLayout(this).apply {
-                      orientation = LinearLayout.VERTICAL
-                      addView(b)
-                      addView(p)
-                  }
-                  root = r
-
-                  val lp = WindowManager.LayoutParams(
-                      WindowManager.LayoutParams.WRAP_CONTENT,
-                      WindowManager.LayoutParams.WRAP_CONTENT,
-                      WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
-                      WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
-                      PixelFormat.TRANSLUCENT
-                  ).apply {
-                      gravity = Gravity.TOP or Gravity.START
-                      x = dp(16)
-                      y = dp(40)
-                  }
-                  params = lp
-
-                  attachDrag(b) { showPanel(true) }
-                  attachDrag(dragHandle, null)
-
-                  selectTab(0)
-                  windowManager.addView(r, lp)
-              }
-
-              private fun showPanel(open: Boolean) {
-                  bubble?.visibility = if (open) View.GONE else View.VISIBLE
-                  panel?.visibility = if (open) View.VISIBLE else View.GONE
-                  refresh()
-              }
-
-              private fun selectTab(index: Int) {
-                  for ((i, t) in tabViews.withIndex()) {
-                      if (i == index) {
-                          t.setTextColor(Color.WHITE)
-                          t.background = GradientDrawable().apply {
-                              setColor(Color.parseColor("#33E50914"))
-                              cornerRadius = dp(6).toFloat()
-                          }
-                      } else {
-                          t.setTextColor(Color.parseColor("#AAAAAA"))
-                          t.background = null
-                      }
-                  }
-                  val c = content ?: return
-                  c.removeAllViews()
-                  for (n in 0 until 5) c.addView(optionRow())
-              }
-
-              private fun optionRow(): LinearLayout {
-                  val states = arrayOf(intArrayOf(android.R.attr.state_checked), intArrayOf())
-                  val row = LinearLayout(this).apply {
-                      orientation = LinearLayout.HORIZONTAL
-                      gravity = Gravity.CENTER_VERTICAL
-                      setPadding(0, dp(4), 0, dp(4))
-                  }
-                  row.addView(TextView(this).apply {
-                      text = "00"
-                      setTextColor(Color.WHITE)
-                      textSize = 14f
-                      layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
-                  })
-                  row.addView(Switch(this).apply {
-                      trackTintList = ColorStateList(states, intArrayOf(red, Color.parseColor("#555555")))
-                      thumbTintList = ColorStateList(states, intArrayOf(Color.WHITE, Color.WHITE))
-                  })
-                  return row
-              }
-
-              private fun attachDrag(handle: View, onTap: (() -> Unit)?) {
-                  handle.setOnTouchListener(object : View.OnTouchListener {
-                      var startX = 0
-                      var startY = 0
-                      var touchX = 0f
-                      var touchY = 0f
-                      var moved = false
-
-                      override fun onTouch(v: View, e: MotionEvent): Boolean {
-                          val lp = params ?: return false
-                          val r = root ?: return false
-                          when (e.action) {
-                              MotionEvent.ACTION_DOWN -> {
-                                  startX = lp.x
-                                  startY = lp.y
-                                  touchX = e.rawX
-                                  touchY = e.rawY
-                                  moved = false
-                              }
-                              MotionEvent.ACTION_MOVE -> {
-                                  val dx = (e.rawX - touchX).toInt()
-                                  val dy = (e.rawY - touchY).toInt()
-                                  if (abs(dx) > dp(5) || abs(dy) > dp(5)) moved = true
-                                  if (moved) {
-                                      lp.x = startX + dx
-                                      lp.y = startY + dy
-                                      wm?.updateViewLayout(r, lp)
-                                  }
-                              }
-                              MotionEvent.ACTION_UP -> {
-                                  if (!moved) onTap?.invoke()
-                              }
-                          }
-                          return true
-                      }
-                  })
-              }
-
-              private fun refresh() {
-                  val r = root ?: return
-                  r.requestLayout()
-                  try { wm?.updateViewLayout(r, params) } catch (_: Exception) {}
-              }
-
-              override fun onDestroy() {
-                  try { root?.let { wm?.removeView(it) } } catch (_: Exception) {}
-                  root = null
-                  super.onDestroy()
-              }
-          }
-          EOF_FILE
-      - uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: 17
-      - uses: gradle/actions/setup-gradle@v4
-        with:
-          gradle-version: 8.7
-      - name: Compilar
-        run: gradle assembleDebug
-      - uses: actions/upload-artifact@v4
-        with:
-          name: Rio-Menu-APK
-          path: app/build/outputs/apk/debug/app-debug.apk
+                      setBackground
