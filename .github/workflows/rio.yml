@@ -4,29 +4,37 @@ on:
   push:
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   build:
+    name: Build APK
     runs-on: ubuntu-latest
 
     steps:
-      - name: Baixar código
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Configurar Java 17
+      - name: Java 17
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
 
-      - name: Configurar Gradle
+      - name: Gradle 8.7
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.7'
 
-      - name: Criar arquivos do projeto
+      - name: Criar projeto Android
         shell: bash
         run: |
           set -e
+
+          mkdir -p app/src/main/java/com/meuapp/riomenu
+          mkdir -p app/src/main/res/values
+          mkdir -p app/src/main/res/drawable
 
           cat > settings.gradle <<'EOF'
           pluginManagement {
@@ -58,12 +66,9 @@ jobs:
 
           cat > gradle.properties <<'EOF'
           org.gradle.jvmargs=-Xmx2g -Dfile.encoding=UTF-8
+          android.useAndroidX=true
           android.nonTransitiveRClass=true
           EOF
-
-          mkdir -p app/src/main/res/values
-          mkdir -p app/src/main/res/drawable
-          mkdir -p app/src/main/java/com/meuapp/riomenu
 
           cat > app/build.gradle <<'EOF'
           plugins {
@@ -109,4 +114,450 @@ jobs:
 
               <path
                   android:fillColor="#E50914"
-                  android:pathData="M54,54m-50,0a50,
+                  android:pathData="M54,4A50,50 0,1 0,54,104A50,50 0,1 0,54,4" />
+
+              <path
+                  android:fillColor="#FFFFFF"
+                  android:pathData="M44,34L78,54L44,74Z" />
+          </vector>
+          EOF
+
+          cat > app/src/main/AndroidManifest.xml <<'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+              <application
+                  android:allowBackup="false"
+                  android:icon="@drawable/ic_launcher"
+                  android:label="@string/app_name"
+                  android:theme="@android:style/Theme.Material.NoActionBar">
+
+                  <activity
+                      android:name=".MainActivity"
+                      android:exported="true">
+
+                      <intent-filter>
+                          <action android:name="android.intent.action.MAIN"/>
+                          <category android:name="android.intent.category.LAUNCHER"/>
+                      </intent-filter>
+
+                  </activity>
+
+              </application>
+
+          </manifest>
+          EOF
+
+          cat > app/src/main/java/com/meuapp/riomenu/MainActivity.kt <<'EOF'
+          package com.meuapp.riomenu
+
+          import android.app.Activity
+          import android.content.Intent
+          import android.graphics.Color
+          import android.graphics.Typeface
+          import android.graphics.drawable.GradientDrawable
+          import android.net.Uri
+          import android.os.Bundle
+          import android.view.Gravity
+          import android.widget.Button
+          import android.widget.EditText
+          import android.widget.LinearLayout
+          import android.widget.ScrollView
+          import android.widget.TextView
+          import android.widget.Toast
+
+          class MainActivity : Activity() {
+
+              companion object {
+                  const val GAME = "com.roleplay.riorise"
+                  const val KEY = "SHADOW-ZTL8-GPJR-A8MQ-ZQ7X"
+              }
+
+              private val bg = Color.rgb(18,18,18)
+              private val card = Color.rgb(42,42,42)
+              private val red = Color.rgb(239,48,48)
+              private val white = Color.WHITE
+              private val gray = Color.rgb(170,170,170)
+
+              private fun dp(v: Int): Int =
+                  (v * resources.displayMetrics.density).toInt()
+
+              private fun box(color: Int, radius: Int = 12) =
+                  GradientDrawable().apply {
+                      setColor(color)
+                      cornerRadius = dp(radius).toFloat()
+                  }
+
+              private fun text(
+                  value: String,
+                  size: Float,
+                  color: Int = white,
+                  bold: Boolean = false
+              ) = TextView(this).apply {
+                  this.text = value
+                  textSize = size
+                  setTextColor(color)
+                  gravity = Gravity.CENTER
+
+                  if (bold) {
+                      typeface = Typeface.DEFAULT_BOLD
+                  }
+              }
+
+              override fun onCreate(state: Bundle?) {
+                  super.onCreate(state)
+                  login()
+              }
+
+              private fun login() {
+
+                  val root = LinearLayout(this)
+                  root.orientation = LinearLayout.VERTICAL
+                  root.setBackgroundColor(bg)
+
+                  val scroll = ScrollView(this)
+
+                  val content = LinearLayout(this)
+                  content.orientation = LinearLayout.VERTICAL
+                  content.gravity = Gravity.CENTER_HORIZONTAL
+
+                  content.setPadding(
+                      dp(30),
+                      dp(60),
+                      dp(30),
+                      dp(30)
+                  )
+
+                  content.addView(
+                      text("MEU APP",40f,red,true),
+                      LinearLayout.LayoutParams(-1,dp(70))
+                  )
+
+                  content.addView(
+                      text("ÁREA DE ACESSO",13f,gray,true),
+                      LinearLayout.LayoutParams(-1,dp(45))
+                  )
+
+                  val key = EditText(this)
+                  key.hint = "Digite sua key"
+                  key.hintTextColor = gray
+                  key.setTextColor(white)
+                  key.textSize = 15f
+                  key.singleLine = true
+                  key.setPadding(dp(16),0,dp(16),0)
+                  key.background = box(card)
+
+                  content.addView(
+                      key,
+                      LinearLayout.LayoutParams(-1,dp(55))
+                  )
+
+                  val entrar = Button(this)
+                  entrar.text = "ENTRAR"
+                  entrar.textSize = 16f
+                  entrar.setTextColor(white)
+                  entrar.isAllCaps = false
+                  entrar.typeface = Typeface.DEFAULT_BOLD
+                  entrar.background = box(red)
+
+                  entrar.setOnClickListener {
+                      if (key.text.toString().trim() == KEY) {
+                          client()
+                      } else {
+                          Toast.makeText(
+                              this,
+                              "Key inválida!",
+                              Toast.LENGTH_SHORT
+                          ).show()
+                      }
+                  }
+
+                  content.addView(
+                      entrar,
+                      LinearLayout.LayoutParams(-1,dp(55)).apply {
+                          topMargin = dp(15)
+                          bottomMargin = dp(20)
+                      }
+                  )
+
+                  content.addView(
+                      text("ÁREA DO CLIENTE",14f,red,true),
+                      LinearLayout.LayoutParams(-1,dp(50))
+                  )
+
+                  val discord = smallButton("Discord") {
+                      open("https://discord.com/")
+                  }
+
+                  content.addView(
+                      discord,
+                      LinearLayout.LayoutParams(-1,dp(50)).apply {
+                          bottomMargin = dp(10)
+                      }
+                  )
+
+                  val youtube = smallButton("YouTube") {
+                      open("https://youtube.com/")
+                  }
+
+                  content.addView(
+                      youtube,
+                      LinearLayout.LayoutParams(-1,dp(50))
+                  )
+
+                  scroll.addView(content)
+
+                  root.addView(
+                      scroll,
+                      LinearLayout.LayoutParams(-1,0,1f)
+                  )
+
+                  setContentView(root)
+              }
+
+              private fun client() {
+
+                  val root = LinearLayout(this)
+                  root.orientation = LinearLayout.VERTICAL
+                  root.setBackgroundColor(bg)
+
+                  val scroll = ScrollView(this)
+
+                  val content = LinearLayout(this)
+                  content.orientation = LinearLayout.VERTICAL
+                  content.setPadding(
+                      dp(18),
+                      dp(35),
+                      dp(18),
+                      dp(30)
+                  )
+
+                  content.addView(
+                      text("MEU APP",34f,red,true),
+                      LinearLayout.LayoutParams(-1,dp(60))
+                  )
+
+                  content.addView(
+                      text("ÁREA DO CLIENTE",13f,gray,true),
+                      LinearLayout.LayoutParams(-1,dp(45))
+                  )
+
+                  val info = LinearLayout(this)
+                  info.orientation = LinearLayout.VERTICAL
+                  info.setPadding(dp(18),dp(18),dp(18),dp(18))
+                  info.background = box(card)
+
+                  info.addView(
+                      text("INFORMAÇÕES DA KEY",16f,red,true),
+                      LinearLayout.LayoutParams(-1,dp(40))
+                  )
+
+                  info.addView(
+                      text("Key: $KEY",12f),
+                      LinearLayout.LayoutParams(-1,dp(35))
+                  )
+
+                  info.addView(
+                      text("É cliente: Sim",12f),
+                      LinearLayout.LayoutParams(-1,dp(35))
+                  )
+
+                  info.addView(
+                      text("Acesso: Ativo",12f),
+                      LinearLayout.LayoutParams(-1,dp(35))
+                  )
+
+                  content.addView(
+                      info,
+                      LinearLayout.LayoutParams(-1,-2).apply {
+                          bottomMargin = dp(15)
+                      }
+                  )
+
+                  val software = LinearLayout(this)
+                  software.orientation = LinearLayout.VERTICAL
+                  software.setPadding(dp(18),dp(18),dp(18),dp(18))
+                  software.background = box(card)
+
+                  software.addView(
+                      text("INFORMAÇÕES DO SOFTWARE",16f,red,true),
+                      LinearLayout.LayoutParams(-1,dp(40))
+                  )
+
+                  software.addView(
+                      text("Software: Rio Rise",12f),
+                      LinearLayout.LayoutParams(-1,dp(35))
+                  )
+
+                  software.addView(
+                      text("Versão: 3.0",12f),
+                      LinearLayout.LayoutParams(-1,dp(35))
+                  )
+
+                  content.addView(
+                      software,
+                      LinearLayout.LayoutParams(-1,-2).apply {
+                          bottomMargin = dp(20)
+                      }
+                  )
+
+                  val jogar = Button(this)
+                  jogar.text = "▶  JOGAR"
+                  jogar.textSize = 17f
+                  jogar.setTextColor(white)
+                  jogar.isAllCaps = false
+                  jogar.typeface = Typeface.DEFAULT_BOLD
+                  jogar.background = box(red,14)
+
+                  jogar.setOnClickListener {
+                      abrirJogo()
+                  }
+
+                  content.addView(
+                      jogar,
+                      LinearLayout.LayoutParams(-1,dp(60)).apply {
+                          bottomMargin = dp(12)
+                      }
+                  )
+
+                  val row = LinearLayout(this)
+                  row.orientation = LinearLayout.HORIZONTAL
+
+                  row.addView(
+                      smallButton("Spoof") {
+                          Toast.makeText(
+                              this,
+                              "Função ainda não configurada.",
+                              Toast.LENGTH_SHORT
+                          ).show()
+                      },
+                      LinearLayout.LayoutParams(0,dp(50),1f)
+                  )
+
+                  row.addView(
+                      smallButton("Conta Google") {
+                          Toast.makeText(
+                              this,
+                              "Função ainda não configurada.",
+                              Toast.LENGTH_SHORT
+                          ).show()
+                      },
+                      LinearLayout.LayoutParams(0,dp(50),1f).apply {
+                          leftMargin = dp(8)
+                      }
+                  )
+
+                  content.addView(
+                      row,
+                      LinearLayout.LayoutParams(-1,dp(50)).apply {
+                          bottomMargin = dp(10)
+                      }
+                  )
+
+                  val row2 = LinearLayout(this)
+                  row2.orientation = LinearLayout.HORIZONTAL
+
+                  row2.addView(
+                      smallButton("Site") {
+                          open("https://example.com/")
+                      },
+                      LinearLayout.LayoutParams(0,dp(50),1f)
+                  )
+
+                  row2.addView(
+                      smallButton("Sair") {
+                          login()
+                      },
+                      LinearLayout.LayoutParams(0,dp(50),1f).apply {
+                          leftMargin = dp(8)
+                      }
+                  )
+
+                  content.addView(
+                      row2,
+                      LinearLayout.LayoutParams(-1,dp(50))
+                  )
+
+                  scroll.addView(content)
+
+                  root.addView(
+                      scroll,
+                      LinearLayout.LayoutParams(-1,0,1f)
+                  )
+
+                  setContentView(root)
+              }
+
+              private fun smallButton(
+                  title: String,
+                  action: () -> Unit
+              ) = Button(this).apply {
+                  text = title
+                  textSize = 13f
+                  setTextColor(white)
+                  isAllCaps = false
+                  background = box(card)
+
+                  setOnClickListener {
+                      action()
+                  }
+              }
+
+              private fun abrirJogo() {
+
+                  val intent =
+                      packageManager.getLaunchIntentForPackage(GAME)
+
+                  if (intent != null) {
+                      startActivity(intent)
+                  } else {
+                      Toast.makeText(
+                          this,
+                          "Rio Rise não está instalado.",
+                          Toast.LENGTH_LONG
+                      ).show()
+                  }
+              }
+
+              private fun open(url: String) {
+                  try {
+                      startActivity(
+                          Intent(
+                              Intent.ACTION_VIEW,
+                              Uri.parse(url)
+                          )
+                      )
+                  } catch (e: Exception) {
+                      Toast.makeText(
+                          this,
+                          "Não foi possível abrir o link.",
+                          Toast.LENGTH_SHORT
+                      ).show()
+                  }
+              }
+          }
+          EOF
+
+      - name: Criar Gradle Wrapper
+        run: |
+          gradle wrapper --gradle-version 8.7
+
+      - name: Compilar APK
+        run: |
+          chmod +x ./gradlew
+          ./gradlew clean assembleDebug
+
+      - name: Verificar APK
+        run: |
+          echo "Arquivos gerados:"
+          find app/build/outputs -type f -print
+          test -f app/build/outputs/apk/debug/app-debug.apk
+
+      - name: Enviar APK para Artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Rio-Menu-APK
+          path: app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 7
